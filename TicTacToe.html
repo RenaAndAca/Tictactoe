@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tic Tac Toe – Renei</title>
+  <style>
+    :root { --size: 60px; --gap: 5px; }
+    body {
+      font-family: system-ui, sans-serif;
+      text-align: center;
+      background: #f0f0f0;
+      padding: 20px;
+      transition: background 0.3s, color 0.3s;
+      position: relative;
+      min-height: 100vh;
+    }
+    .dark {
+      background: #1e1e1e;
+      color: #fff;
+    }
+    #game-board {
+      display: grid;
+      gap: var(--gap);
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .cell {
+      width: var(--size);
+      height: var(--size);
+      background: #fff;
+      font-size: calc(var(--size) / 2.2);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #333;
+      cursor: pointer;
+      transition: transform 0.2s, background 0.2s;
+      user-select: none;
+    }
+    .cell.filled {
+      animation: pop 0.2s;
+      cursor: default;
+    }
+    @keyframes pop {
+      0% {
+        transform: scale(0.3);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    .dark .cell {
+      background: #333;
+      color: #fff;
+      border-color: #999;
+    }
+    #hack {
+      color: #f44;
+      font-weight: 700;
+      margin-top: 10px;
+      display: none;
+    }
+    footer {
+      margin-top: 40px;
+      font-weight: 700;
+      color: #666;
+    }
+    .dark footer {
+      color: #aaa;
+    }
+    button {
+      margin: 5px;
+      cursor: pointer;
+    }
+    #theme-toggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 1.5em;
+    }
+    #leaderboard {
+      margin-top: 20px;
+      max-width: 300px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: left;
+    }
+    #timer {
+      margin-top: 10px;
+      font-weight: 700;
+      font-size: 1.2em;
+      color: #333;
+    }
+    .dark #timer {
+      color: #ddd;
+    }
+    #feedback-link {
+      display: block;
+      margin-top: 20px;
+      color: blue;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    #edit-score-panel {
+      margin-top: 20px;
+      max-width: 300px;
+      margin-left: auto;
+      margin-right: auto;
+      background: #eee;
+      padding: 10px;
+      border-radius: 8px;
+      display: none;
+    }
+    .dark #edit-score-panel {
+      background: #444;
+    }
+    #edit-score-panel label,
+    #edit-score-panel input,
+    #edit-score-panel button {
+      display: block;
+      margin: 5px 0;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <button id="theme-toggle" onclick="toggleTheme()">🌗</button>
+  <h1>Tic Tac Toe – Renei</h1>
+
+  <div id="player-input">
+    <input type="text" id="player-name" placeholder="Masukkan nama Anda" />
+    <button onclick="startGame()">Mulai Game</button>
+  </div>
+
+  <div id="controls" style="display:none;">
+    <label>
+      Ukuran Grid:
+      <select id="grid-size" onchange="restartGame()">
+        <option value="3" selected>3×3</option>
+        <option value="4">4×4</option>
+      </select>
+    </label>
+    <label>
+      Kesulitan:
+      <select id="difficulty" onchange="restartGame()">
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+    </label>
+    <label>
+      Mode:
+      <select id="game-mode" onchange="restartGame()">
+        <option value="bot" selected>Lawannya Bot</option>
+        <option value="multi">Multiplayer</option>
+      </select>
+    </label>
+    <label>
+      Pilih Simbol:
+      <select id="player-symbol" onchange="restartGame()">
+        <option value="X" selected>X</option>
+        <option value="O">O</option>
+      </select>
+    </label>
+    <button onclick="restartGame()">Restart</button>
+    <button onclick="exitGame()">Keluar</button>
+    <button id="undoBtn" onclick="undoMove()" style="display:none;">Undo</button>
+    <button id="autoWinBtn" onclick="autoWin()" style="display:none;">Auto Win</button>
+    <button id="godModeBtn" onclick="toggleGodMode()" style="display:none;">Aktifkan God Mode</button>
+  </div>
+
+  <div id="timer">Timer: 00:30</div>
+
+  <div id="scoreboard" style="display:none;">
+    <p><strong>Player:</strong> <span id="playerDisplay"></span></p>
+    <p><strong>Skor Anda:</strong> <span id="score">0</span></p>
+    <p><strong>Skor Bot:</strong> <span id="scoreBot">0</span></p>
+    <p><strong>Terakhir Main:</strong> <span id="lastPlayed">-</span></p>
+  </div>
+
+  <div id="hack">🎉 Hack Mode Aktif! (God Mode, Undo, Auto Win)</div>
+
+  <div id="game-board"></div>
+
+  <div id="leaderboard">
+    <h3>🏆 Leaderboard Offline</h3>
+    <ul id="leaderboard-list"></ul>
+    <button id="resetBtn" onclick="resetLeaderboard()" style="display:none;">Reset Leaderboard</button>
+  </div>
+
+  <div id="edit-score-panel">
+    <h3>Edit Skor (Developer)</h3>
+    <label for="edit-name">Nama Pemain:</label>
+    <input type="text" id="edit-name" placeholder="Masukkan nama pemain" />
+    <label for="edit-score">Skor Baru:</label>
+    <input type="number" id="edit-score" min="0" />
+    <button onclick="saveEditedScore()">Simpan Skor</button>
+  </div>
+
+  <a id="feedback-link" href="https://wa.me/62895403145433" target="_blank" rel="noopener noreferrer">
+    Ada yang error atau ingin memberi saran? Hubungi developer lewat WhatsApp
+  </a>
+
+  <!-- Suara -->
+  <audio id="click-sound" src="click.wav" preload="auto"></audio>
+  <audio id="win-sound" src="win.wav" preload="auto"></audio>
+
+  <script>
+    /* ===== Variabel Global ===== */
+    let currentPlayer = "X",
+      boardSize = 3,
+      board = [],
+      history = [],
+      score = 0,
+      scoreBot = 0,
+      playerName = "",
+      godMode = false,
+      gameMode = "bot",
+      playerSymbol = "X",
+      timerInterval,
+      timerSeconds = 30,
+      canUndo = false;
+
+    const clickSound = document.getElementById("click-sound"),
+      winSound = document.getElementById("win-sound");
+
+    const playSound = (snd) => {
+      snd.currentTime = 0;
+      snd.play().catch(() => {});
+    };
+
+    const nowString = () => new Date().toLocaleString();
+
+    const elements = {
+      hack: document.getElementById("hack"),
+      autoWinBtn: document.getElementById("autoWinBtn"),
+      undoBtn: document.getElementById("undoBtn"),
+      godModeBtn: document.getElementById("godModeBtn"),
+      timer: document.getElementById("timer"),
+      resetBtn: document.getElementById("resetBtn"),
+      editPanel: document.getElementById("edit-score-panel"),
+    };
+
+    function toggleTheme() {
+      document.body.classList.toggle("dark");
+    }
+
+    function startGame() {
+  const input = document.getElementById("player-name").value.trim();
+  if (!input) {
+    alert("Masukkan nama terlebih dahulu!");
+    return;
+  }
+
+  // Validasi nama "Renei" hanya untuk developer
+  if (input.toLowerCase() === "renei") {
+    const kode = prompt("Nama 'Renei' hanya untuk developer. Masukkan kode akses:");
+    if (kode !== "xNeizy91") {
+      alert("Kode salah! Nama 'Renei' tidak bisa digunakan.");
+      return;
+    }
+  }
+
+  playerName = input;
+  document.getElementById("playerDisplay").textContent = playerName;
+      playerName = input;
+      document.getElementById("playerDisplay").textContent = playerName;
+
+      // Load settings
+      gameMode = document.getElementById("game-mode").value;
+      playerSymbol = document.getElementById("player-symbol").value;
+
+      document.getElementById("player-input").style.display = "none";
+      document.getElementById("controls").style.display = "block";
+      document.getElementById("scoreboard").style.display = "block";
+
+      score = +(localStorage.getItem(`score_${playerName}`) || 0);
+      scoreBot = +(localStorage.getItem(`scoreBot_${playerName}`) || 0);
+      document.getElementById("score").textContent = score;
+      document.getElementById("scoreBot").textContent = scoreBot;
+      document.getElementById("lastPlayed").textContent =
+        localStorage.getItem(`lastPlayed_${playerName}`) || "-";
+
+      godMode = false;
+      elements.hack.style.display = "none";
+      elements.autoWinBtn.style.display = "none";
+      elements.undoBtn.style.display = "none";
+      elements.godModeBtn.style.display = "none";
+      elements.editPanel.style.display = "none";
+      elements.resetBtn.style.display = "none";
+
+      // God mode only for developer "renei"
+      if (playerName.toLowerCase() === "renei") {
+        elements.godModeBtn.style.display = "inline-block";
+        elements.resetBtn.style.display = "inline-block";
+        elements.editPanel.style.display = "block";
+      }
+
+      restartGame();
+      updateLeaderboard();
+    }
+
+    function restartGame() {
+      clearInterval(timerInterval);
+      timerSeconds = 30;
+      updateTimerDisplay();
+
+      boardSize = +document.getElementById("grid-size").value;
+      gameMode = document.getElementById("game-mode").value;
+      playerSymbol = document.getElementById("player-symbol").value;
+
+      board = Array.from({ length: boardSize }, () =>
+        Array(boardSize).fill("")
+      );
+      history = [];
+      canUndo = godMode; // Undo only if godMode enabled
+
+      // Siapa duluan
+      currentPlayer = "X";
+
+      renderBoard();
+      history.push(JSON.stringify(board));
+      startTimer();
+
+      // Jika lawan bot dan bot punya symbol X dan giliran pertama
+      if (gameMode === "bot" && currentPlayer !== playerSymbol) {
+        setTimeout(botMove, 500);
+      }
+    }
+
+    function renderBoard() {
+      const boardDiv = document.getElementById("game-board");
+      boardDiv.innerHTML = "";
+      boardDiv.style.setProperty(
+        "grid-template-columns",
+        `repeat(${boardSize}, var(--size))`
+      );
+      board.forEach((row, i) =>
+        row.forEach((c, j) => {
+          const div = document.createElement("div");
+          div.className = "cell" + (c ? " filled" : "");
+          div.textContent = c;
+          div.onclick = () => handleMove(i, j);
+          boardDiv.appendChild(div);
+        })
+      );
+    }
+
+    function handleMove(i, j) {
+      if (board[i][j]) return; // Sudah terisi
+      if (
+        gameMode === "bot" &&
+        currentPlayer !== playerSymbol
+      )
+        return; // Jangan klik saat bot giliran
+
+      board[i][j] = currentPlayer;
+      playSound(clickSound);
+      history.push(JSON.stringify(board));
+      renderBoard();
+      resetTimer();
+
+      if (checkWin(currentPlayer)) {
+        endRound(currentPlayer);
+        return;
+      }
+      if (isDraw()) {
+        alert("Seri!");
+        restartGame();
+        return;
+      }
+      switchTurn();
+
+      if (gameMode === "bot" && currentPlayer !== playerSymbol) {
+        setTimeout(botMove, 400);
+      }
+    }
+
+    function switchTurn() {
+      currentPlayer = currentPlayer === "X" ? "O" : "X";
+    }
+
+    function botMove() {
+      if (gameMode !== "bot") return;
+
+      let move;
+      const level = document.getElementById("difficulty").value;
+
+      if (level === "easy") move = getRandomMove();
+      else if (level === "medium") move = getMediumMove();
+      else move = getBestMoveMinimax();
+
+      if (!move) return;
+
+      board[move.i][move.j] = currentPlayer;
+      playSound(clickSound);
+      history.push(JSON.stringify(board));
+      renderBoard();
+      resetTimer();
+
+      if (checkWin(currentPlayer)) {
+        endRound("bot");
+        return;
+      }
+      if (isDraw()) {
+        alert("Seri!");
+        restartGame();
+        return;
+      }
+      switchTurn();
+    }
+
+    function* iterateEmpties(state = board) {
+      for (let i = 0; i < state.length; i++)
+        for (let j = 0; j < state.length; j++)
+          if (!state[i][j]) yield { i, j };
+    }
+
+    function getRandomMove() {
+      const e = [...iterateEmpties()];
+      return e[Math.floor(Math.random() * e.length)];
+    }
+
+    function getMediumMove() {
+      // Cek menang dulu
+      for (const { i, j } of iterateEmpties()) {
+        board[i][j] = currentPlayer;
+        if (checkWin(currentPlayer)) {
+          board[i][j] = "";
+          return { i, j };
+        }
+        board[i][j] = "";
+      }
+      // Blokir lawan menang
+      const opponent = currentPlayer === "X" ? "O" : "X";
+      for (const { i, j } of iterateEmpties()) {
+        board[i][j] = opponent;
+        if (checkWin(opponent)) {
+          board[i][j] = "";
+          return { i, j };
+        }
+        board[i][j] = "";
+      }
+      return getRandomMove();
+    }
+
+    function getBestMoveMinimax() {
+      if (boardSize !== 3) return getMediumMove();
+
+      const best = minimax(board, true);
+      return { i: best.i, j: best.j };
+    }
+
+    function minimax(s, max, depth = 0) {
+      if (checkWin("O", s)) return { score: 10 - depth };
+      if (checkWin("X", s)) return { score: depth - 10 };
+      if (isDraw(s)) return { score: 0 };
+
+      let best = max ? -1e9 : 1e9,
+        bestMove = null;
+      for (const { i, j } of iterateEmpties(s)) {
+        s[i][j] = max ? "O" : "X";
+        const val = minimax(s, !max, depth + 1).score;
+        s[i][j] = "";
+        if ((max && val > best) || (!max && val < best)) {
+          best = val;
+          bestMove = { i, j };
+        }
+      }
+      return depth ? { score: best } : { ...bestMove };
+    }
+
+    function undoMove() {
+      if (!godMode) return alert("Undo hanya untuk developer!");
+      if (history.length < 2) {
+        alert("Tidak bisa undo!");
+        return;
+      }
+      history.pop();
+      board = JSON.parse(history[history.length - 1]);
+      currentPlayer = playerSymbol;
+      renderBoard();
+      resetTimer();
+    }
+
+    // Auto Win Paksa menang tanpa peduli posisi
+    function autoWin() {
+      if (!godMode) {
+        alert("Auto Win hanya untuk developer!");
+        return;
+      }
+      // Paksa isi langkah kemenangan dari posisi saat ini
+      // Isi langkah kosong untuk bikin menang
+
+      // Cari langkah kosong yang bikin player menang paksa
+      let foundMove = false;
+
+      // Isi seluruh board dengan playerSymbol lalu cek kemenangan
+      for (let i = 0; i < boardSize; i++) {
+        for (let j = 0; j < boardSize; j++) {
+          if (!board[i][j]) {
+            board[i][j] = playerSymbol;
+          }
+        }
+      }
+
+      if (checkWin(playerSymbol)) {
+        foundMove = true;
+      } else {
+        // Jika tidak menang, maka ganti satu baris dengan playerSymbol
+        for (let i = 0; i < boardSize; i++) {
+          for (let j = 0; j < boardSize; j++) {
+            board[i][j] = playerSymbol;
+          }
+        }
+      }
+
+      if (foundMove) {
+        renderBoard();
+        endRound(playerSymbol, true);
+      } else {
+        alert("Gagal memaksa menang!");
+      }
+    }
+
+    // Cek kemenangan pemain p di papan state (default board)
+    function checkWin(p, state = board) {
+      const n = state.length;
+      const w = (l) => l.every((c) => c === p);
+      for (let i = 0; i < n; i++) {
+        if (w(state[i]) || w(state.map((r) => r[i]))) return true;
+      }
+      if (
+        w(state.map((r, idx) => r[idx])) ||
+        w(state.map((r, idx) => r[n - 1 - idx]))
+      )
+        return true;
+      return false;
+    }
+
+    function isDraw(s = board) {
+      return s.flat().every((c) => c);
+    }
+
+    function endRound(w, forced = false) {
+      playSound(winSound);
+      if (w === playerSymbol) {
+        alert(forced ? "Auto Win Berhasil! Kamu menang!" : "Kamu menang!");
+        score++;
+        localStorage.setItem(`score_${playerName}`, score);
+        document.getElementById("score").textContent = score;
+      } else if (w === "bot") {
+        alert("Bot menang!");
+        scoreBot++;
+        localStorage.setItem(`scoreBot_${playerName}`, scoreBot);
+        document.getElementById("scoreBot").textContent = scoreBot;
+      } else {
+        alert("Kalah atau seri!");
+      }
+      localStorage.setItem(`lastPlayed_${playerName}`, nowString());
+      document.getElementById("lastPlayed").textContent = nowString();
+
+      // Update leaderboard & restart
+      updateLeaderboard();
+      restartGame();
+    }
+
+    function updateLeaderboard() {
+      // Offline leaderboard based on localStorage, just demo
+      const list = document.getElementById("leaderboard-list");
+      list.innerHTML = "";
+
+      let keys = Object.keys(localStorage).filter((k) =>
+        k.startsWith("score_")
+      );
+      keys = keys.sort((a, b) => {
+        const sa = +localStorage.getItem(a);
+        const sb = +localStorage.getItem(b);
+        return sb - sa;
+      });
+
+      for (const key of keys) {
+        const name = key.slice(6);
+        const val = localStorage.getItem(key);
+        const li = document.createElement("li");
+        li.textContent = `${name}: ${val} poin`;
+        list.appendChild(li);
+      }
+    }
+
+    function resetLeaderboard() {
+      if (!godMode) return alert("Reset leaderboard hanya developer!");
+      if (!confirm("Reset semua skor leaderboard?")) return;
+      Object.keys(localStorage).forEach((k) => {
+        if (k.startsWith("score_") || k.startsWith("scoreBot_") || k.startsWith("lastPlayed_"))
+          localStorage.removeItem(k);
+      });
+      score = 0;
+      scoreBot = 0;
+      document.getElementById("score").textContent = score;
+      document.getElementById("scoreBot").textContent = scoreBot;
+      document.getElementById("lastPlayed").textContent = "-";
+      updateLeaderboard();
+      restartGame();
+    }
+
+    function toggleGodMode() {
+      godMode = !godMode;
+      if (godMode) {
+        elements.hack.style.display = "block";
+        elements.autoWinBtn.style.display = "inline-block";
+        elements.undoBtn.style.display = "inline-block";
+        elements.godModeBtn.textContent = "Nonaktifkan God Mode";
+      } else {
+        elements.hack.style.display = "none";
+        elements.autoWinBtn.style.display = "none";
+        elements.undoBtn.style.display = "none";
+        elements.godModeBtn.textContent = "Aktifkan God Mode";
+      }
+      canUndo = godMode;
+    }
+
+    function saveEditedScore() {
+      if (!godMode) return alert("Edit skor hanya developer!");
+      const n = document.getElementById("edit-name").value.trim();
+      const s = Number(document.getElementById("edit-score").value);
+      if (!n) return alert("Nama tidak boleh kosong");
+      if (isNaN(s) || s < 0) return alert("Skor harus angka >= 0");
+      localStorage.setItem(`score_${n}`, s);
+      alert(`Skor untuk ${n} diubah menjadi ${s}`);
+      updateLeaderboard();
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      timerSeconds = 30;
+      updateTimerDisplay();
+      timerInterval = setInterval(() => {
+        timerSeconds--;
+        updateTimerDisplay();
+        if (timerSeconds <= 0) {
+          clearInterval(timerInterval);
+          timerSeconds = 0;
+          updateTimerDisplay();
+          if (gameMode === "bot" && currentPlayer !== playerSymbol) {
+            botMove();
+          } else if (gameMode === "multi") {
+            alert(
+              `Waktu habis untuk pemain ${currentPlayer}, giliran langsung berganti`
+            );
+            switchTurn();
+            startTimer();
+          }
+        }
+      }, 1000);
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      timerSeconds = 30;
+      updateTimerDisplay();
+      startTimer();
+    }
+
+    function updateTimerDisplay() {
+      const m = Math.floor(timerSeconds / 60)
+        .toString()
+        .padStart(2, "0");
+      const s = (timerSeconds % 60).toString().padStart(2, "0");
+      elements.timer.textContent = `Timer: ${m}:${s}`;
+    }
+
+    function exitGame() {
+      if (!confirm("Yakin mau keluar dari game?")) return;
+      location.reload();
+    }
+
+    // Prevent undo if not god mode
+    window.undoMove = undoMove;
+    window.autoWin = autoWin;
+    window.toggleGodMode = toggleGodMode;
+    window.restartGame = restartGame;
+    window.startGame = startGame;
+    window.exitGame = exitGame;
+    window.saveEditedScore = saveEditedScore;
+
+  </script>
+</body>
+</html>
